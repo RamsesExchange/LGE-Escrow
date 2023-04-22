@@ -83,6 +83,7 @@ contract LGEEscrow {
             msg.sender == lge_Counterparty ||
                 authorizedOperator[msg.sender] == true
         );
+        require(ramsesSignature == true && counterpartySignature == true, "Signature Error: Both sides have not signed yet!");
         for (uint i = 0; i < escrowedTokens.length; ++i) {
             IERC20(escrowedTokens[i]).transfer(
                 lge_Counterparty,
