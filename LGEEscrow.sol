@@ -1,3 +1,7 @@
+/**
+ *Submitted for verification at Arbiscan on 2023-04-22
+ */
+
 // SPDX-License-Identifier: MIT
 /*************************************************************************************
  Ramses LGEEscrow contract
@@ -13,12 +17,20 @@ interface IERC20 {
     function balanceOf(address _wallet) external view returns (uint);
 }
 
-contract LGEEscrow {
+contract LGEEscrow_CRUIZE {
     address public lge_Counterparty;
     address[] public escrowedTokens;
     mapping(address => bool) authorizedOperator;
     bool ramsesSignature = false;
     bool counterpartySignature = false;
+
+    event counterPartyDeclared(address _counterparty);
+    event TokensEscrowedChanged(address[] _tokens);
+    event CounterSigned(bool _signed);
+    event OperatorRemoved(address _removed);
+    event OperatorAdded(address _added);
+    event TokensReleasedFromEscrow(bool _status);
+    event RamsesSignOff(bool _signed);
 
     modifier onlyRamsesOperator() {
         require(
@@ -46,6 +58,7 @@ contract LGEEscrow {
         address _counterParty
     ) external onlyRamsesOperator {
         lge_Counterparty = _counterParty;
+        emit counterPartyDeclared(lge_Counterparty);
     }
 
     ///@dev sets an array of the tokens to be escrowed
@@ -53,11 +66,13 @@ contract LGEEscrow {
         address[] calldata _tokens
     ) external onlyRamsesOperator {
         escrowedTokens = _tokens;
+        emit TokensEscrowedChanged(escrowedTokens);
     }
 
     ///@dev adds a new operator for Ramses
     function addNewOperator(address _operator) external onlyRamsesOperator {
         authorizedOperator[_operator] = true;
+        emit OperatorAdded(_operator);
     }
 
     ///@dev removes a Ramses Operator
@@ -65,16 +80,19 @@ contract LGEEscrow {
         address _removedOperator
     ) external onlyRamsesOperator {
         authorizedOperator[_removedOperator] = false;
+        emit OperatorRemoved(_removedOperator);
     }
 
     //@signature commands
     function sign() external onlyCounterparty {
         counterpartySignature = true;
+        emit CounterSigned(true);
     }
 
     ///@dev RAMSES countersign
     function ramsesSign() external onlyRamsesOperator {
         ramsesSignature = true;
+        emit RamsesSignOff(true);
     }
 
     ///@dev only callable by lge_counterparty or Ramses operators after both sides have signed and confirmed
@@ -83,13 +101,18 @@ contract LGEEscrow {
             msg.sender == lge_Counterparty ||
                 authorizedOperator[msg.sender] == true
         );
-        require(ramsesSignature == true && counterpartySignature == true, "Signature Error: Both sides have not signed yet!");
+        require(
+            ramsesSignature == true && counterpartySignature == true,
+            "Signature Error: Both sides have not signed yet!"
+        );
         for (uint i = 0; i < escrowedTokens.length; ++i) {
             IERC20(escrowedTokens[i]).transfer(
                 lge_Counterparty,
                 IERC20(escrowedTokens[i]).balanceOf(address(this))
             );
         }
+
+        emit TokensReleasedFromEscrow(true);
 
         return true;
     }
